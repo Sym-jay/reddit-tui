@@ -148,7 +148,6 @@ func (m Model) View() string {
 			downvoteStyle = downvoteStyle.Foreground(lipgloss.Color("33")).Bold(true)
 		}
 
-		previewLines = append(previewLines, previewPaneHeading.Render("PREVIEW"))
 		previewLines = append(previewLines, "")
 		previewLines = append(previewLines, previewTitleStyle.Render(selectedPost.Title))
 		previewLines = append(previewLines, "")
@@ -195,8 +194,9 @@ func (m Model) View() string {
 
 	mainContent := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, posts, preview)
 
-	controlText := metaStyle.Render("Tab: switch panes | ↑↓/j/k: navigate/scroll | u: upvote | d: downvote | q: quit")
-	controlPane := renderPane(controlText, m.Width, controlPaneHeight, "63", false)
+	controlTextStyle := metaStyle.Width(m.Width - 4)
+	controlText := controlTextStyle.Render("Tab: switch panes | ↑↓/j/k: navigate/scroll | u: upvote | d: downvote | q: quit")
+	controlPane := renderPane(controlText, m.Width, controlPaneHeight, "", false)
 
 	return lipgloss.JoinVertical(lipgloss.Left, mainContent, controlPane)
 }

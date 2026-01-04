@@ -32,7 +32,7 @@ func (p *Post) ToggleUpvote() {
 	} else if p.UserVote == VoteDown {
 		// Switch from downvote to upvote
 		p.UserVote = VoteUp
-		p.VoteOffset = 2 // +1 to cancel downvote, +1 for upvote
+		p.VoteOffset = 1 // +1 to cancel downvote, +1 for upvote
 	} else {
 		// Add upvote
 		p.UserVote = VoteUp
@@ -49,7 +49,7 @@ func (p *Post) ToggleDownvote() {
 	} else if p.UserVote == VoteUp {
 		// Switch from upvote to downvote
 		p.UserVote = VoteDown
-		p.VoteOffset = -2 // -1 to cancel upvote, -1 for downvote
+		p.VoteOffset = -1 // -1 to cancel upvote, -1 for downvote
 	} else {
 		// Add downvote
 		p.UserVote = VoteDown
