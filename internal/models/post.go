@@ -9,16 +9,16 @@ const (
 )
 
 type Post struct {
-	Title      string    `json:"title"`
-	Subreddit  string    `json:"subreddit"`
-	Author     string    `json:"author"`
-	Upvotes    int       `json:"upvotes"`
-	Comments   int       `json:"comments"`
-	UserVote   VoteState 
-	VoteOffset int      
+	Title      string `json:"title"`
+	Subreddit  string `json:"subreddit"`
+	Author     string `json:"author"`
+	Upvotes    int    `json:"upvotes"`
+	Comments   int    `json:"comments"`
+	UserVote   VoteState
+	VoteOffset int
 }
 
-//returns the upvote count adjusted for user vote
+// returns the upvote count adjusted for user vote
 func (p *Post) GetDisplayUpvotes() int {
 	return p.Upvotes + p.VoteOffset
 }

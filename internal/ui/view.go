@@ -21,20 +21,36 @@ func renderPane(content string, width, height int, borderColor string, active bo
 	}
 
 	lines := strings.Split(content, "\n")
-
 	result := make([]string, innerHeight)
+
 	for i := 0; i < innerHeight; i++ {
 		if i < len(lines) {
 			line := lines[i]
 
-			if lipgloss.Width(line) > innerWidth {
-				runes := []rune(line)
-				if len(runes) > innerWidth {
-					line = string(runes[:innerWidth])
-				}
-			}
+			// --- FIX STARTS HERE ---
+			// Check if this line is an Image Protocol sequence (Kitty/Ghostty or iTerm2)
+			// These sequences should NOT be truncated or padded with spaces,
+			// otherwise the terminal cannot render the base64 data.
+			isImage := strings.Contains(line, "\033_G") || strings.Contains(line, "\033]1337")
 
-			result[i] = line + strings.Repeat(" ", innerWidth-lipgloss.Width(line))
+			if isImage {
+				// Pass the image data through raw
+				result[i] = line
+			} else {
+				// Standard text processing (Truncate and Pad)
+				w := lipgloss.Width(line)
+				if w > innerWidth {
+					// Handle truncation safely
+					runes := []rune(line)
+					if len(runes) > innerWidth {
+						line = string(runes[:innerWidth])
+					}
+				}
+				// Pad with spaces to fill the pane width
+				result[i] = line + strings.Repeat(" ", max(0, innerWidth-lipgloss.Width(line)))
+			}
+			// --- FIX ENDS HERE ---
+
 		} else {
 			result[i] = strings.Repeat(" ", innerWidth)
 		}
@@ -71,8 +87,18 @@ func (m Model) View() string {
 		sidebarWidth = 15
 	}
 	remainingWidth := m.Width - sidebarWidth
-	postsWidth := remainingWidth / 2
-	previewWidth := remainingWidth - postsWidth
+
+	// Adjust layout based on whether settings is shown
+	var postsWidth, previewWidth int
+	if m.ShowSettings {
+		// Full width for settings, no preview pane
+		postsWidth = remainingWidth
+		previewWidth = 0
+	} else {
+		// Normal layout with preview pane
+		postsWidth = remainingWidth / 2
+		previewWidth = remainingWidth - postsWidth
+	}
 
 	paneHeight := m.Height - controlPaneHeight
 
@@ -130,7 +156,66 @@ func (m Model) View() string {
 
 	var postsContent string
 
-	if m.IsSearching {
+	if m.ShowSettings {
+		// Settings pane
+		postsContent = postsPaneHeading.Render("SETTINGS") + "\n\n"
+
+		settingsLabelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252")).Bold(true).MarginLeft(2)
+		settingsInputStyle := lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#ffb090")).
+			PaddingLeft(1).
+			PaddingRight(1).
+			Width(postsWidth - 8)
+		settingsInputActiveStyle := lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#ff5700")).
+			PaddingLeft(1).
+			PaddingRight(1).
+			Width(postsWidth - 8)
+		settingsHintStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241")).MarginLeft(2)
+
+		// API Key field
+		apiKeyLabel := settingsLabelStyle.Render("API Key")
+		apiKeyStyle := settingsInputStyle
+		if m.SettingsCursor == 0 {
+			apiKeyStyle = settingsInputActiveStyle
+		}
+		apiKeyValue := m.APIKey
+		if m.EditingField == 1 {
+			apiKeyValue += lipgloss.NewStyle().Foreground(lipgloss.Color("#ff5700")).Render("█")
+		}
+		if apiKeyValue == "" && m.EditingField != 1 {
+			apiKeyValue = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render("Enter your Reddit API key...")
+		}
+
+		postsContent += apiKeyLabel + "\n"
+		postsContent += apiKeyStyle.Render(apiKeyValue) + "\n\n"
+
+		// Client Secret field
+		clientSecretLabel := settingsLabelStyle.Render("Client Secret")
+		clientSecretStyle := settingsInputStyle
+		if m.SettingsCursor == 1 {
+			clientSecretStyle = settingsInputActiveStyle
+		}
+		clientSecretValue := m.ClientSecret
+		// Mask the client secret
+		if len(m.ClientSecret) > 0 && m.EditingField != 2 {
+			clientSecretValue = strings.Repeat("•", len(m.ClientSecret))
+		}
+		if m.EditingField == 2 {
+			clientSecretValue += lipgloss.NewStyle().Foreground(lipgloss.Color("#ff5700")).Render("█")
+		}
+		if clientSecretValue == "" && m.EditingField != 2 {
+			clientSecretValue = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render("Enter your client secret...")
+		}
+
+		postsContent += clientSecretLabel + "\n"
+		postsContent += clientSecretStyle.Render(clientSecretValue) + "\n\n"
+
+		postsContent += settingsHintStyle.Render("↑↓: navigate | Enter: edit | Esc: done") + "\n"
+
+	} else if m.IsSearching {
 		searchBarStyle := lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#ff5700")).
@@ -265,13 +350,23 @@ func (m Model) View() string {
 
 	sidebar := renderPane(sidebarContent, sidebarWidth, paneHeight, "#ffb090", m.ActivePane == "sidebar")
 	posts := renderPane(postsContent, postsWidth, paneHeight, "#ffb090", m.ActivePane == "posts")
-	preview := renderPane(previewContent, previewWidth, paneHeight, "#ffb090", m.ActivePane == "preview")
 
-	mainContent := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, posts, preview)
+	// Conditionally render main content based on settings view
+	var mainContent string
+	if m.ShowSettings {
+		// No preview pane in settings
+		mainContent = lipgloss.JoinHorizontal(lipgloss.Top, sidebar, posts)
+	} else {
+		// Include preview pane
+		preview := renderPane(previewContent, previewWidth, paneHeight, "#ffb090", m.ActivePane == "preview")
+		mainContent = lipgloss.JoinHorizontal(lipgloss.Top, sidebar, posts, preview)
+	}
 
 	controlTextStyle := metaStyle.Width(m.Width - 4)
 	var controlText string
-	if m.IsSearching {
+	if m.ShowSettings {
+		controlText = controlTextStyle.Render("Enter: select section | Tab: switch panes | ↑↓/j/k: navigate | Esc: exit editing | q: quit")
+	} else if m.IsSearching {
 		controlText = controlTextStyle.Render("Enter: select section | Tab: switch panes | ↑↓/j/k: navigate | Esc: clear search | u: upvote | d: downvote | q: quit")
 	} else {
 		controlText = controlTextStyle.Render("Enter: select section | Tab: switch panes | ↑↓/j/k: navigate/scroll | u: upvote | d: downvote | q: quit")
