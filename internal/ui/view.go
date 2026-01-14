@@ -247,8 +247,7 @@ func (m Model) View() string {
 		}
 	} else {
 		postsContent = postsPaneHeading.Render("POSTS") + "\n\n"
-		// Calculate how many posts can fit (each post takes ~4 lines with border)
-		visiblePosts := (paneHeight - 4) / 5 // Heading + spacing + post items
+		visiblePosts := (paneHeight - 4) / 5
 		if visiblePosts < 1 {
 			visiblePosts = 1
 		}
