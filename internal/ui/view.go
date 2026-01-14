@@ -220,9 +220,6 @@ func (m Model) View() string {
 			noResultsStyle := lipgloss.NewStyle().Foreground(theme.NoResultsColor).Align(lipgloss.Center)
 			postsContent += noResultsStyle.Render("No results found") + "\n"
 		} else {
-			// Show search results
-			// Calculate how many posts can fit (each post takes ~5 lines with border)
-			// Account for extra space used by search bar (~4 lines)
 			visiblePosts := (paneHeight - 8) / 5
 			if visiblePosts < 1 {
 				visiblePosts = 1
