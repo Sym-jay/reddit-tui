@@ -111,29 +111,7 @@ func (m Model) renderHelpModal() string {
 	modalWidth := 60
 	modalHeight := 32
 
-	// Split content into lines and pad to fill modal height
-	lines := strings.Split(helpContent, "\n")
-	contentWidth := modalWidth - 4   // Account for padding (1,2) on each side = 4 total horizontal
-	contentHeight := modalHeight - 2 // Account for padding top and bottom = 2 total vertical
-
-	// Pad each line to full width and pad to full height
-	paddedLines := make([]string, contentHeight)
-	for i := 0; i < contentHeight; i++ {
-		if i < len(lines) {
-			// Get the visible width of the line (accounting for ANSI codes)
-			lineWidth := lipgloss.Width(lines[i])
-			// Pad the line to full width
-			paddedLines[i] = lines[i] + strings.Repeat(" ", max(0, contentWidth-lineWidth))
-		} else {
-			// Fill empty lines with spaces
-			paddedLines[i] = strings.Repeat(" ", contentWidth)
-		}
-	}
-
-	// Join all padded lines
-	paddedContent := strings.Join(paddedLines, "\n")
-
-	// Style the modal with proper alignment
+	// Style the modal - lipgloss will handle padding and sizing automatically
 	modalStyle := lipgloss.NewStyle().
 		Width(modalWidth).
 		Height(modalHeight).
@@ -142,7 +120,7 @@ func (m Model) renderHelpModal() string {
 		BorderForeground(theme.HelpModalBorderColor).
 		Align(lipgloss.Left, lipgloss.Top)
 
-	return modalStyle.Render(paddedContent)
+	return modalStyle.Render(helpContent)
 }
 
 func renderPane(content string, width, height int, borderColor string, active bool) string {
@@ -508,21 +486,15 @@ func (m Model) View() string {
 	if m.ShowHelp {
 		helpModal := m.renderHelpModal()
 
-		// Create a dimmed overlay background
-		overlayBg := lipgloss.NewStyle().
-			Width(m.Width).
-			Height(m.Height).
-			Background(lipgloss.Color("#1a1a1a"))
-
-		// Place the modal centered on the overlay
-		overlay := overlayBg.Render(
-			lipgloss.Place(
-				m.Width,
-				m.Height,
-				lipgloss.Center,
-				lipgloss.Center,
-				helpModal,
-			),
+		// Place the modal centered with dimmed background
+		overlay := lipgloss.Place(
+			m.Width,
+			m.Height,
+			lipgloss.Center,
+			lipgloss.Center,
+			helpModal,
+			lipgloss.WithWhitespaceChars(" "),
+			lipgloss.WithWhitespaceBackground(lipgloss.Color("#1a1a1a")),
 		)
 		return overlay
 	}
