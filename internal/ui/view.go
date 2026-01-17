@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"reddit-tui/internal/icons"
 	"reddit-tui/internal/models"
 	"reddit-tui/internal/theme"
 
@@ -43,13 +44,13 @@ func (m Model) renderHelpModal() string {
 	var content strings.Builder
 
 	// App Info
-	content.WriteString(titleStyle.Render("🚀 Re-TUI v1.0.0"))
+	content.WriteString(titleStyle.Render(icons.Info + " Re-TUI v1.0.0"))
 	content.WriteString("\n")
 	content.WriteString(descStyle.Render("A beautiful terminal interface for Reddit"))
 	content.WriteString("\n\n")
 
 	// Quick keybindings
-	content.WriteString(headerStyle.Render("⌨  Quick Keys"))
+	content.WriteString(headerStyle.Render(icons.Help + " Quick Keys"))
 	content.WriteString("\n")
 	content.WriteString(keyStyle.Render("?") + descStyle.Render("Toggle help"))
 	content.WriteString("\n")
@@ -63,7 +64,7 @@ func (m Model) renderHelpModal() string {
 	content.WriteString("\n")
 
 	// Tips & Tricks
-	content.WriteString(headerStyle.Render("💡 Tips & Tricks"))
+	content.WriteString(headerStyle.Render(icons.Trending + " Tips & Tricks"))
 	content.WriteString("\n")
 	content.WriteString(tipStyle.Render("• Use Tab to quickly switch between panes"))
 	content.WriteString("\n")
@@ -77,7 +78,7 @@ func (m Model) renderHelpModal() string {
 	content.WriteString("\n")
 
 	// Context-aware section
-	content.WriteString(headerStyle.Render("📍 Current: " + m.ActivePane))
+	content.WriteString(headerStyle.Render(icons.Filter + " Current: " + m.ActivePane))
 	content.WriteString("\n")
 	if m.ActivePane == "sidebar" {
 		content.WriteString(descStyle.Render("Select Home, Explore, or Settings"))
@@ -95,31 +96,53 @@ func (m Model) renderHelpModal() string {
 	content.WriteString("\n")
 
 	// Documentation
-	content.WriteString(headerStyle.Render("📚 Resources"))
+	content.WriteString(headerStyle.Render(icons.Post + " Resources"))
 	content.WriteString("\n")
 	content.WriteString(linkStyle.Render("https://github.com/harryfrzz/re-tui"))
 	content.WriteString("\n")
 	content.WriteString(descStyle.Render("Report issues, contribute, or star the repo!"))
 	content.WriteString("\n\n")
 
-	content.WriteString(descStyle.Render("Press ? to close • Made with ❤️  using Bubble Tea"))
+	content.WriteString(descStyle.Render("Press ? to close • Made with Bubble Tea"))
 
 	helpContent := content.String()
 
 	// Calculate modal dimensions
 	modalWidth := 60
-	modalHeight := 28
+	modalHeight := 32
 
-	// Style the modal
+	// Split content into lines and pad to fill modal height
+	lines := strings.Split(helpContent, "\n")
+	contentWidth := modalWidth - 4   // Account for padding (1,2) on each side = 4 total horizontal
+	contentHeight := modalHeight - 2 // Account for padding top and bottom = 2 total vertical
+
+	// Pad each line to full width and pad to full height
+	paddedLines := make([]string, contentHeight)
+	for i := 0; i < contentHeight; i++ {
+		if i < len(lines) {
+			// Get the visible width of the line (accounting for ANSI codes)
+			lineWidth := lipgloss.Width(lines[i])
+			// Pad the line to full width
+			paddedLines[i] = lines[i] + strings.Repeat(" ", max(0, contentWidth-lineWidth))
+		} else {
+			// Fill empty lines with spaces
+			paddedLines[i] = strings.Repeat(" ", contentWidth)
+		}
+	}
+
+	// Join all padded lines
+	paddedContent := strings.Join(paddedLines, "\n")
+
+	// Style the modal with proper alignment
 	modalStyle := lipgloss.NewStyle().
 		Width(modalWidth).
 		Height(modalHeight).
 		Padding(1, 2).
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(theme.HelpModalBorderColor).
-		Background(theme.HelpModalBgColor)
+		Align(lipgloss.Left, lipgloss.Top)
 
-	return modalStyle.Render(helpContent)
+	return modalStyle.Render(paddedContent)
 }
 
 func renderPane(content string, width, height int, borderColor string, active bool) string {
@@ -484,15 +507,24 @@ func (m Model) View() string {
 	// Overlay help modal if ShowHelp is true
 	if m.ShowHelp {
 		helpModal := m.renderHelpModal()
-		fullView = lipgloss.Place(
-			m.Width,
-			m.Height,
-			lipgloss.Center,
-			lipgloss.Center,
-			helpModal,
-			lipgloss.WithWhitespaceChars("░"),
-			lipgloss.WithWhitespaceForeground(lipgloss.Color("#333333")),
+
+		// Create a dimmed overlay background
+		overlayBg := lipgloss.NewStyle().
+			Width(m.Width).
+			Height(m.Height).
+			Background(lipgloss.Color("#1a1a1a"))
+
+		// Place the modal centered on the overlay
+		overlay := overlayBg.Render(
+			lipgloss.Place(
+				m.Width,
+				m.Height,
+				lipgloss.Center,
+				lipgloss.Center,
+				helpModal,
+			),
 		)
+		return overlay
 	}
 
 	return fullView
